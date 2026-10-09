@@ -100,6 +100,10 @@ from pipeline.code.trace import QuestionPaths, make_run_dir, make_run_root
 _ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 
 
+# how long start-up waits for the Biolink neighborhoods (see lifespan).
+BIOLINK_WAIT_S = 20
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # start-up: load env, parse config, attach a logger that lives for
@@ -191,20 +195,38 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # the Tier 0 graph actually carries, then we never touch BMT again per
     # request. failures are non-fatal: pipeline falls back to the
     # strict single-category filter, same as the old behaviour.
-    try:
-        toolkit = make_biolink_toolkit()
-        app.state.biolink_neighborhoods = build_biolink_neighborhood_map(
-            app.state.available_categories or [], toolkit, logger,
-        )
-        sample = app.state.biolink_neighborhoods.get("biolink:Pathway", [])
+    # BMT downloads the YAML from GitHub with no timeout, so a dead route
+    # hangs it (2026-10-09: GitHub's IPv6 addresses never answered, and
+    # Python tries them before IPv4). it runs in a thread: start-up waits
+    # for it at most BIOLINK_WAIT_S, then serves without the
+    # neighborhoods, and the thread fills them in when it finishes (each
+    # question reads app.state.biolink_neighborhoods when it starts).
+    app.state.biolink_neighborhoods = {}
+    categories = list(app.state.available_categories or [])
+
+    def build_neighborhoods() -> None:
+        try:
+            toolkit = make_biolink_toolkit()
+            neighborhoods = build_biolink_neighborhood_map(categories, toolkit, logger)
+        except Exception as e:
+            logger.warning(f"could not build biolink neighborhoods: {e}")
+            return
+        app.state.biolink_neighborhoods = neighborhoods
+        sample = neighborhoods.get("biolink:Pathway", [])
         logger.info(
             f"biolink neighborhoods cached: "
-            f"{len(app.state.biolink_neighborhoods)} categories · "
+            f"{len(neighborhoods)} categories · "
             f"e.g. biolink:Pathway → {sample}"
         )
-    except Exception as e:
-        logger.warning(f"could not build biolink neighborhoods at start-up: {e}")
-        app.state.biolink_neighborhoods = {}
+
+    builder = threading.Thread(target=build_neighborhoods, name="biolink-neighborhoods", daemon=True)
+    builder.start()
+    builder.join(BIOLINK_WAIT_S)
+    if builder.is_alive():
+        logger.warning(
+            f"biolink neighborhoods not ready after {BIOLINK_WAIT_S}s; serving without them "
+            f"until the download finishes"
+        )
 
     yield
 

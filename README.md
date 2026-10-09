@@ -6,7 +6,7 @@
 
 **Ask a biomedical question in plain English. ARAX answers it over the NCATS Biomedical Data Translator's Tier 0 knowledge graph, and every claim in the explanation cites a fact.**
 
-[![tests](https://github.com/RTXteam/PloverAI/actions/workflows/tests.yml/badge.svg)](https://github.com/RTXteam/PloverAI/actions/workflows/tests.yml)
+[![tests](https://github.com/Translator-CATRAX/PloverAI/actions/workflows/tests.yml/badge.svg)](https://github.com/Translator-CATRAX/PloverAI/actions/workflows/tests.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.12-blue.svg)](pipeline/requirements.txt)
 [![node](https://img.shields.io/badge/node-22-339933.svg)](frontend/package.json)
@@ -66,15 +66,45 @@ The pipeline is a standalone HTTP service. The web UI is one client of it; anyth
 
 The Translator services are free and public. The only paid part is the LLM. With `openai/gpt-6-luna` one question cost $0.0013 to $0.0027 (nine runs, 2026-09-29). Endpoints and models live in `pipeline/config.yaml`.
 
-## The web UI
+## A tour of the web UI
 
-A full-width workbench:
+The web UI is a full-width workbench. The top band shows the question as the LLM read it: the TRAPI query it wrote and the one sent to ARAX. Under it, the eleven steps with their timing and cost. Below are three panes: ARAX's ranked answers, the reasoning graph, and an inspector. Every picture below is the same recorded run, "what treats glaucoma".
 
-- **Top band.** The question as the LLM read it, with the TRAPI query it wrote and the one sent to ARAX. Under it, the eleven steps with their timing and cost.
-- **Answers.** ARAX's ranked answers with score and number of facts, marked where the LLM picked them.
-- **Reasoning graph.** A deterministic, left-to-right figure: answers, the entities linking them, and the question's entity. Links that make the same statement about the same entity merge into one line. Line width is the number of facts, and line style is the strongest evidence. Hovering an answer, entity or link lights its paths, its rows in the answers table and its facts in the evidence list. Export as SVG or PNG.
-- **Inspector.** The explanation with citation cards, the evidence behind every fact, the query, all 15 stages with their prompts and artifacts, the raw artifacts and the live log.
-- **Runs.** Every run on the server, filterable by question, model and outcome. Any run opens at `/?run=<run_id>`.
+**While a question runs.** The steps fill in one by one, the inspector streams the log, and the graph grows as the entity, the answers and their paths arrive. When the answer is in, the inspector opens the explanation.
+
+<img src="docs/img/07-live.png" alt="A question in progress: the steps up to Explain are done, the log streams in the inspector, and the reasoning graph is drawn" width="900" />
+
+**Answers and their paths.** The graph is deterministic and reads left to right: the answers, the entities linking them, and the question's entity. Links that make the same statement about the same entity merge into one line. Line width is the number of facts, and line style is the strongest evidence. Hovering an answer lights its paths and its row in the answers table.
+
+<img src="docs/img/02-graph-hover.png" alt="Hovering Bimatoprost lights its three paths to glaucoma and its row in the answers table" width="900" />
+
+**Every claim cites a fact.** Each [F#] in the explanation opens a card with the fact, its source, and what it rests on.
+
+<img src="docs/img/03-citation.png" alt="The card for fact F7: Brimonidine applied to treat glaucoma, from FDA adverse event reports, approved for this condition" width="900" />
+
+**The evidence behind each fact.** The evidence list shows every fact with its source, approvals, registered trials and publications. Hovering a node or a link in the graph marks its facts here.
+
+<img src="docs/img/04-evidence.png" alt="Hovering OPTN-related open angle glaucoma marks its facts in the evidence list" width="900" />
+
+**The query.** The query the LLM wrote, the query sent to ARAX, and the validator's verdict.
+
+<img src="docs/img/05-query.png" alt="The Query tab: the TRAPI query sent to ARAX and the reasoner-validator report" width="900" />
+
+**Every stage.** All 15 stages, with their kind (LLM, service, function), tokens, time, prompts and artifacts.
+
+<img src="docs/img/06-pipeline.png" alt="The Pipeline tab listing stages 9 to 15 with their tokens and timing" width="900" />
+
+**The run history.** Every run on the server, filterable by question, model and outcome. Any run opens at `/?run=<run_id>`.
+
+<img src="docs/img/08-runs.png" alt="The Runs view: a table of runs with question, model, result, time and cost" width="900" />
+
+**A dark theme.**
+
+<img src="docs/img/09-dark.png" alt="The same workbench in the dark theme" width="900" />
+
+**Figures for papers.** The graph exports as SVG or PNG, drawn in the same style with its legend.
+
+<img src="docs/img/10-figure.png" alt="The exported reasoning figure for what treats glaucoma, with its legend" width="700" />
 
 ## Setup
 
@@ -97,7 +127,7 @@ PLOVERAI_API_KEY=dev-key-change-me \
   pipeline/.venv/bin/uvicorn pipeline.code.api:app --port 8000
 ```
 
-It is ready when the log says `meta_KG cached`. It reads Retriever's meta knowledge graph at start-up, which takes a few seconds.
+It is ready when uvicorn logs `Application startup complete`, usually after a few seconds. At start-up it reads Retriever's meta knowledge graph and builds the Biolink category neighbourhoods. It waits at most 20 seconds for the Biolink model to download, then starts without it and adds it once the download finishes.
 
 ### Frontend
 
@@ -127,7 +157,7 @@ The runner (`pipeline/code/runner.py`) runs them through the pipeline. The score
 
 ## History
 
-Until 2026-09-28 PloverAI was a chat interface for PloverDB, querying RTX-KG2.10.2c one hop at a time with no reasoner. That system is in this repository's history up to commit `b37b3d4`.
+Until 2026-09-28 PloverAI was a chat interface for PloverDB, querying RTX-KG2.10.2c one hop at a time with no reasoner. That system is in this repository's history up to commit `b37b3d4`. The repository lived at RTXteam/PloverAI until 2026-10-09; that address now points here.
 
 ## Citation
 
