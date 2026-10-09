@@ -256,7 +256,7 @@ export default function Workbench() {
 
 // ------------------------------------------------------------------ top bar
 
-const REPO_URL = "https://github.com/bazarkua/ploverai";
+const REPO_URL = "https://github.com/Translator-CATRAX/PloverAI";
 
 function TopBar({
   info,

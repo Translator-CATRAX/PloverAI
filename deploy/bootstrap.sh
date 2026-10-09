@@ -17,7 +17,7 @@ set -euo pipefail
 REPO_URL="${1:-}"
 if [[ -z "$REPO_URL" ]]; then
     echo "usage: $0 <git-url>"
-    echo "example: $0 https://github.com/RamseyLab/ploverai.git"
+    echo "example: $0 https://github.com/Translator-CATRAX/PloverAI.git"
     exit 1
 fi
 
